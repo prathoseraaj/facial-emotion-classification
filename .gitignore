@@ -1,5 +1,6 @@
 /.venv
-/Dataset(images)
+/data
+*.vscode
 /facial_expression_model.h5
 /label_encoder.json
 /__pycache__
