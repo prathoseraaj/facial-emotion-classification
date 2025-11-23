@@ -1,0 +1,26 @@
+# Core ML/DL dependencies
+tensorflow==2.20.0
+numpy==2.2.6
+opencv-python==4.12.0.88
+pandas==2.3.3
+scikit-learn==1.7.2
+matplotlib==3.10.7
+Pillow==12.0.0
+
+# YOLO for face detection
+ultralytics==8.3.50
+
+# FastAPI and server
+fastapi==0.115.5
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+pydantic==2.10.4
+
+# Google Gemini AI
+google-generativeai==0.8.3
+
+# Environment management
+python-dotenv==1.0.1
+
+# Optional but recommended
+aiofiles==24.1.0
