@@ -226,6 +226,204 @@ def analyze_facial_features_fallback(face_img: np.ndarray) -> Dict:
         'scores': scores,
         'reasoning': 'Fallback CV analysis'
     }
+def generate_attention_heatmap(face_img: np.ndarray, emotion: str) -> str:
+    """
+    Generate high-quality emotion-specific attention heatmap focused on facial features only
+    """
+    try:
+        # Ensure face image is valid
+        if face_img is None or face_img.size == 0:
+            logger.error("Invalid face image for heatmap")
+            return None
+            
+        h, w = face_img.shape[:2]
+        
+        # Convert to grayscale
+        gray = cv2.cvtColor(face_img, cv2.COLOR_BGR2GRAY)
+        
+        # Apply CLAHE for better contrast on facial features
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+        enhanced = clahe.apply(gray)
+        
+        # Detect facial features using Haar Cascades
+        eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_eye.xml')
+        mouth_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_smile.xml')
+        
+        # Create feature mask (focuses only on facial features)
+        feature_mask = np.zeros((h, w), dtype=np.float32)
+        
+        # Detect eyes
+        eyes = eye_cascade.detectMultiScale(enhanced, 1.3, 5)
+        for (ex, ey, ew, eh) in eyes:
+            # Create gradient around eyes
+            cv2.ellipse(feature_mask, (ex + ew//2, ey + eh//2), (ew, eh), 0, 0, 360, 255, -1)
+            # Add extra weight for eyebrow area (above eyes)
+            cv2.rectangle(feature_mask, (ex, max(0, ey-eh//2)), (ex+ew, ey), 200, -1)
+        
+        # Detect mouth area (lower third of face)
+        mouth_region = enhanced[2*h//3:, :]
+        mouths = mouth_cascade.detectMultiScale(mouth_region, 1.3, 5)
+        for (mx, my, mw, mh) in mouths:
+            actual_my = my + 2*h//3
+            cv2.ellipse(feature_mask, (mx + mw//2, actual_my + mh//2), (mw, mh), 0, 0, 360, 255, -1)
+        
+        # If no mouth detected, use lower third as default
+        if len(mouths) == 0:
+            feature_mask[2*h//3:, :] = 180
+        
+        # Add nose bridge area (center vertical strip)
+        nose_x_start = w//3
+        nose_x_end = 2*w//3
+        nose_y_start = h//3
+        nose_y_end = 2*h//3
+        feature_mask[nose_y_start:nose_y_end, nose_x_start:nose_x_end] = np.maximum(
+            feature_mask[nose_y_start:nose_y_end, nose_x_start:nose_x_end], 150
+        )
+        
+        # Apply Canny edge detection for fine details
+        edges = cv2.Canny(enhanced, 50, 150)
+        
+        # Combine feature mask with edges (edges only where features exist)
+        attention_map = (edges.astype(np.float32) * (feature_mask / 255.0)).astype(np.float32)
+        
+        # Emotion-specific weighting
+        if emotion == 'Happy':
+            # Boost mouth region (smile)
+            attention_map[2*h//3:, :] *= 3.5
+            # Boost eye corners (crow's feet)
+            attention_map[:h//3, :] *= 2.2
+            # Boost cheeks
+            attention_map[h//3:2*h//3, :w//3] *= 1.8
+            attention_map[h//3:2*h//3, 2*w//3:] *= 1.8
+            
+        elif emotion == 'Sad':
+            # Boost eyes and inner eyebrows
+            attention_map[:h//3, :] *= 3.0
+            attention_map[:h//4, w//3:2*w//3] *= 3.5
+            # Boost downturned mouth
+            attention_map[2*h//3:, :] *= 3.2
+            
+        elif emotion == 'Angry':
+            # Heavy boost on eyebrows
+            attention_map[:h//4, :] *= 5.0
+            # Nose wrinkles
+            attention_map[h//3:2*h//3, w//3:2*w//3] *= 3.0
+            # Tense jaw/mouth
+            attention_map[2*h//3:, :] *= 2.8
+            
+        elif emotion == 'Surprise':
+            # Maximum on wide eyes
+            attention_map[:h//3, :] *= 5.0
+            # Raised eyebrows
+            attention_map[:h//5, :] *= 4.5
+            # Open mouth
+            attention_map[2*h//3:, :] *= 4.2
+            
+        elif emotion == 'Fear':
+            # Wide eyes and raised eyebrows
+            attention_map[:h//3, :] *= 4.5
+            attention_map[:h//5, :] *= 3.8
+            # Tense mouth
+            attention_map[2*h//3:, :] *= 2.5
+            
+        elif emotion == 'Disgust':
+            # Nose wrinkle
+            attention_map[h//3:2*h//3, w//3:2*w//3] *= 4.5
+            # Upper lip raise
+            attention_map[2*h//3:2*h//3+h//6, :] *= 3.8
+            
+        else:  # Neutral
+            # Balanced attention
+            attention_map[:h//3, :] *= 2.0
+            attention_map[h//3:2*h//3, :] *= 1.5
+            attention_map[2*h//3:, :] *= 2.0
+        
+        # Smooth the attention map
+        attention_map = cv2.GaussianBlur(attention_map, (51, 51), 0)
+        attention_map = cv2.GaussianBlur(attention_map, (31, 31), 0)
+        
+        # Normalize to full range
+        if attention_map.max() > 0:
+            attention_map = cv2.normalize(attention_map, None, 0, 255, cv2.NORM_MINMAX)
+        attention_map = attention_map.astype(np.uint8)
+        
+        # Apply colormap (TURBO or JET)
+        try:
+            heatmap_colored = cv2.applyColorMap(attention_map, cv2.COLORMAP_TURBO)
+        except:
+            heatmap_colored = cv2.applyColorMap(attention_map, cv2.COLORMAP_JET)
+        
+        # Create mask to fade out low-attention areas (make them transparent-ish)
+        mask = attention_map > 30  # Only show areas with significant attention
+        heatmap_colored = cv2.bitwise_and(heatmap_colored, heatmap_colored, mask=mask.astype(np.uint8) * 255)
+        
+        # Upscale for better quality
+        target_size = 600
+        scale = target_size / max(h, w)
+        new_w, new_h = int(w * scale), int(h * scale)
+        
+        face_resized = cv2.resize(face_img, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
+        heatmap_resized = cv2.resize(heatmap_colored, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
+        
+        # Create overlay - more face visible, less heatmap
+        overlay = cv2.addWeighted(face_resized, 0.65, heatmap_resized, 0.35, 0)
+        
+        # Add professional border
+        border_size = 20
+        overlay = cv2.copyMakeBorder(
+            overlay, border_size, border_size, border_size, border_size,
+            cv2.BORDER_CONSTANT, value=[20, 20, 20]
+        )
+        
+        # Add title with background
+        title = f"Emotion Attention Map: {emotion}"
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 0.9
+        thickness = 2
+        
+        (text_width, text_height), baseline = cv2.getTextSize(title, font, font_scale, thickness)
+        
+        # Draw background for text
+        cv2.rectangle(overlay, 
+                     (border_size - 5, border_size - text_height - 20),
+                     (border_size + text_width + 10, border_size - 5),
+                     (0, 0, 0), -1)
+        
+        # Draw title
+        cv2.putText(overlay, title, 
+                   (border_size, border_size - 12),
+                   font, font_scale, (255, 255, 255), thickness, cv2.LINE_AA)
+        
+        # Add color legend
+        legend_h = 35
+        legend = np.zeros((legend_h, new_w, 3), dtype=np.uint8)
+        for i in range(new_w):
+            color_val = int(255 * i / new_w)
+            try:
+                color = cv2.applyColorMap(np.array([[color_val]], dtype=np.uint8), cv2.COLORMAP_TURBO)[0, 0]
+            except:
+                color = cv2.applyColorMap(np.array([[color_val]], dtype=np.uint8), cv2.COLORMAP_JET)[0, 0]
+            legend[:, i] = color
+        
+        # Legend labels
+        cv2.putText(legend, "Low Attention", (10, legend_h - 10), font, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+        cv2.putText(legend, "High Attention", (new_w - 130, legend_h - 10), font, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+        
+        # Combine with legend
+        final = np.vstack([overlay, cv2.copyMakeBorder(legend, 0, border_size, border_size, border_size, 
+                                                       cv2.BORDER_CONSTANT, value=[20, 20, 20])])
+        
+        # Encode with high quality
+        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 95]
+        _, buffer = cv2.imencode('.jpg', final, encode_param)
+        heatmap_base64 = base64.b64encode(buffer).decode('utf-8')
+        
+        logger.info(f"✅ Feature-focused heatmap generated for {emotion}")
+        return heatmap_base64
+        
+    except Exception as e:
+        logger.error(f"Heatmap generation error: {e}", exc_info=True)
+        return None
 
 @app.get("/")
 async def root():
@@ -328,6 +526,15 @@ async def predict_emotion(
         all_probs = {k: v * 100 for k, v in result['scores'].items()}
         is_confident = confidence > CONFIDENCE_THRESHOLD * 100
         
+        # Generate heatmap if requested
+        heatmap_base64 = None
+        if include_heatmap:
+            heatmap_base64 = generate_attention_heatmap(face_img, emotion)
+            if heatmap_base64:
+                logger.info(f"✅ Heatmap generated for {emotion}")
+            else:
+                logger.warning(f"⚠️ Heatmap generation failed for {emotion}")
+        
         # Get additional Gemini insight
         gemini_insight = result.get('reasoning', None)
         if include_gemini and gemini_model:
@@ -357,7 +564,8 @@ Keep it warm and professional."""
             confidence=confidence,
             all_probabilities=all_probs,
             is_confident=is_confident,
-            gemini_insight=gemini_insight
+            gemini_insight=gemini_insight,
+            heatmap_base64=heatmap_base64
         )
         
     except Exception as e:
