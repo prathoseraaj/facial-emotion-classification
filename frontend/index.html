@@ -10,22 +10,22 @@
 <body>
     <div class="container">
         <header>
-            <h1>🧠 Emotion Recognition AI</h1>
-            <p class="subtitle">Advanced facial emotion detection powered by ResNet & Gemini AI</p>
+            <h1>Emotion Recognition System</h1>
+            <p class="subtitle">Advanced facial emotion detection powered by YOLO & Gemini AI</p>
         </header>
 
         <div class="main-content">
             <!-- Input Section -->
             <div class="input-section">
                 <div class="tab-buttons">
-                    <button class="tab-btn active" data-tab="upload">📁 Upload Image</button>
-                    <button class="tab-btn" data-tab="webcam">📷 Live Webcam</button>
+                    <button class="tab-btn active" data-tab="upload">Upload Image</button>
+                    <button class="tab-btn" data-tab="webcam">Live Webcam</button>
                 </div>
 
                 <!-- Upload Tab -->
                 <div class="tab-content active" id="upload-tab">
                     <div class="upload-area" id="upload-area">
-                        <div class="upload-icon">📤</div>
+                        <div class="upload-icon">⬆</div>
                         <p>Drag & drop an image here</p>
                         <p class="upload-hint">or click to browse</p>
                         <input type="file" id="file-input" accept="image/*" hidden>
@@ -76,10 +76,10 @@
                     <!-- Emotion Result -->
                     <div class="emotion-card">
                         <div class="emotion-header">
-                            <span class="emotion-icon" id="emotion-icon">😊</span>
+                            <span class="emotion-icon" id="emotion-icon">EMOTION</span>
                             <div>
-                                <h2 id="emotion-label">Happy</h2>
-                                <p class="confidence-text">Confidence: <span id="confidence">95%</span></p>
+                                <h2 id="emotion-label">Analyzing...</h2>
+                                <p class="confidence-text">Confidence: <span id="confidence">0%</span></p>
                             </div>
                         </div>
                         
@@ -90,28 +90,31 @@
 
                     <!-- All Probabilities -->
                     <div class="probabilities-card">
-                        <h3>All Emotions</h3>
+                        <h3>Probability Distribution</h3>
                         <div id="probabilities-list"></div>
                     </div>
 
-                    <!-- Gemini Insight -->
-                    <div class="insight-card" id="insight-card" style="display: none;">
-                        <h3>🤖 AI Insight</h3>
-                        <p id="gemini-insight"></p>
-                    </div>
+                    <!-- Insights Section - Separated -->
+                    <div class="insights-section">
+                        <!-- Gemini Insight -->
+                        <div class="insight-card" id="insight-card" style="display: none;">
+                            <h3>AI Analysis & Insights</h3>
+                            <p id="gemini-insight"></p>
+                        </div>
 
-                    <!-- Heatmap Visualization -->
-                    <div class="heatmap-card" id="heatmap-card" style="display: none;">
-                        <h3>🔥 Model Attention Heatmap</h3>
-                        <img id="heatmap-image" src="" alt="Heatmap">
-                        <p class="heatmap-hint">Red areas indicate where the model focused most</p>
+                        <!-- Heatmap Visualization -->
+                        <div class="heatmap-card" id="heatmap-card" style="display: none;">
+                            <h3>Model Attention Heatmap</h3>
+                            <img id="heatmap-image" src="" alt="Heatmap">
+                            <p class="heatmap-hint">Red areas indicate where the model focused most</p>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
         <footer>
-            <p>Powered by ResNet50V2 & Google Gemini 2.5 Flash</p>
+            <p>Powered by YOLOv8 & Google Gemini AI | Emotion Recognition System</p>
         </footer>
     </div>
 

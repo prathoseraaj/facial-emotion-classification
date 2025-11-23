@@ -1,15 +1,15 @@
 // API Configuration
 const API_BASE_URL = 'http://localhost:8000';
 
-// Emotion to emoji mapping
-const EMOTION_EMOJIS = {
-    'Happy': '😊',
-    'Sad': '😢',
-    'Angry': '😠',
-    'Surprise': '😲',
-    'Fear': '😨',
-    'Disgust': '🤢',
-    'Neutral': '😐'
+// Emotion to symbol mapping (no emojis)
+const EMOTION_SYMBOLS = {
+    'Happy': 'HAPPY',
+    'Sad': 'SAD',
+    'Angry': 'ANGRY',
+    'Surprise': 'SURPRISE',
+    'Fear': 'FEAR',
+    'Disgust': 'DISGUST',
+    'Neutral': 'NEUTRAL'
 };
 
 // DOM Elements
@@ -160,7 +160,7 @@ function displayResults(data) {
     const confidence = document.getElementById('confidence');
     const confidenceFill = document.getElementById('confidence-fill');
     
-    emotionIcon.textContent = EMOTION_EMOJIS[data.emotion] || '🤔';
+    emotionIcon.textContent = EMOTION_SYMBOLS[data.emotion] || data.emotion.toUpperCase();
     emotionLabel.textContent = data.emotion;
     confidence.textContent = `${data.confidence.toFixed(1)}%`;
     confidenceFill.style.width = `${data.confidence}%`;
@@ -177,7 +177,7 @@ function displayResults(data) {
         const item = document.createElement('div');
         item.className = 'prob-item';
         item.innerHTML = `
-            <span class="prob-label">${EMOTION_EMOJIS[emotion]} ${emotion}</span>
+            <span class="prob-label">${emotion}</span>
             <span class="prob-value">${prob.toFixed(1)}%</span>
         `;
         probabilitiesList.appendChild(item);
@@ -212,7 +212,7 @@ function displayResults(data) {
         warning.style.background = '#fff3cd';
         warning.style.borderLeft = '5px solid #ffc107';
         warning.innerHTML = `
-            <h3>⚠️ Low Confidence Warning</h3>
+            <h3>Low Confidence Warning</h3>
             <p>The model is uncertain about this prediction. Consider using a clearer facial image with better lighting and a visible face.</p>
         `;
         resultsContent.insertBefore(warning, resultsContent.firstChild);
